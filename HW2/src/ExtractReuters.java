@@ -73,7 +73,7 @@ public class ExtractReuters
 		}
 	}
 
-	Pattern EXTRACTION_PATTERN = Pattern.compile("<REUTERS (.*?)>|<TOPICS><D>(.*?)</D></TOPICS>|<TITLE>(.*?)</TITLE>|<BODY>(.*?)</BODY>");
+	Pattern EXTRACTION_PATTERN = Pattern.compile("<REUTERS (.*?)>|<TOPICS>(.*?)</TOPICS>|<TITLE>(.*?)</TITLE>|<BODY>(.*?)</BODY>");
 
 	private static String[] META_CHARS = {"&", "<", ">", "\"", "'"};
 	private static String[] META_CHARS_SERIALIZATIONS = {"&amp;", "&lt;", "&gt;", "&quot;", "&apos;"};
@@ -97,6 +97,7 @@ public class ExtractReuters
 			int count = 0;
 			String groupString;
 			String typeString = "";
+			
 			while ((line = reader.readLine()) != null)
 			{
 				//when we see a closing reuters tag, flush the file
@@ -116,6 +117,7 @@ public class ExtractReuters
 					while (matcher.find())
 					{
 						groupString = matcher.group();
+						if(docNumber == 16) System.out.println(groupString);
 						String [] split = groupString.split(" ");
 						//check REUTERS context
 						if(split[0].equals("<REUTERS"))
@@ -130,7 +132,6 @@ public class ExtractReuters
 							if(typeString.equals("TEST") && testStart == -1)
 							{
 								testStart = docNumber;
-								System.out.println("train end at " + (testStart - 1));
 								docNumber = 0;
 							}
 							
@@ -150,6 +151,11 @@ public class ExtractReuters
 								topicBoolean = false;
 								break;
 							}
+							if(groupString.equals("<TOPICS></TOPICS>"))
+							{
+								topicBoolean = false;
+								break;
+							}
 						}
 						
 						//check body is exist
@@ -160,21 +166,39 @@ public class ExtractReuters
 								topicBoolean = false;
 								break;
 							}
+							if(groupString.equals("<BODY></BODY>"))
+							{
+								topicBoolean = false;
+								break;
+							}
 						}
 						
 						for (int i = 1; i <= matcher.groupCount(); i++)
 						{
 							if (matcher.group(i) != null)
 							{
-								outBuffer.append(matcher.group(i));
+								if(matcherCount == 1)
+								{
+									String topicString = matcher.group(i);
+									split = topicString.split("<D>");
+									Integer length = split.length - 1;
+									topicString = length.toString();
+									for(int l=1;l<split.length;l++)
+										topicString = topicString + " " + split[l].split("</D>")[0];
+									outBuffer.append(topicString);
+								}
+								else
+									outBuffer.append(matcher.group(i));
 							}
 						}
 						outBuffer.append(LINE_SEPARATOR).append(LINE_SEPARATOR);
 						matcherCount++;
 					}
+					if(matcherCount < 4) topicBoolean = false;
 					
 					if(topicBoolean)
 					{
+						if(docNumber == 16) System.out.println(matcherCount);
 						String out = outBuffer.toString();
 						for (int i = 0; i < META_CHARS_SERIALIZATIONS.length; i++)
 						{
@@ -188,8 +212,6 @@ public class ExtractReuters
 					}
 					outBuffer.setLength(0);
 					buffer.setLength(0);
-					/*count++;
-					if(count==2)break;*/
 				}
 			}
 			reader.close();
@@ -202,10 +224,6 @@ public class ExtractReuters
 
 	public static void main(String[] args)
 	{
-		if (args.length != 2)
-		{
-			printUsage();
-		}
 		File reutersDir = new File("../sgmFile");
 		if (reutersDir.exists())
 		{
