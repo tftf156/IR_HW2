@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.TreeMap;  
 
 /**
@@ -38,6 +40,9 @@ public class ExtractReuters
 	private ArrayList<Integer> topicsNumArray;
 	int docNumber = 0;
 	int testStart = -1;
+    private List termsDocsArray = new ArrayList();
+    private List allTerms = new ArrayList();
+    private List tfidfDocsVector = new ArrayList();
 
 	public ExtractReuters(File reutersDir, File outputDir)
 	{
@@ -71,12 +76,12 @@ public class ExtractReuters
 				File sgmFile = sgmFiles[i];
 				extractFile(sgmFile);
 			}
-			System.out.println("Complete!!");
+			//System.out.println("Complete!!");
 			//
-			for(String topic : topicsArray)
-			{
-				System.out.println(topic + " " + topicsNumArray.get(topicsArray.indexOf(topic)));
-			}
+			//for(String topic : topicsArray)
+			//{
+			//	System.out.println(topic + " " + topicsNumArray.get(topicsArray.indexOf(topic)));
+			//}
 		}
 		else
 		{
@@ -123,6 +128,7 @@ public class ExtractReuters
 
 					Boolean topicBoolean = true;
 					int matcherCount = 0;
+					StringBuilder sb = new StringBuilder();
 					//Extract the relevant pieces and write to a file in the output dir
 					Matcher matcher = EXTRACTION_PATTERN.matcher(buffer);
 					while (matcher.find())
@@ -153,7 +159,6 @@ public class ExtractReuters
 								break;
 							}
 						}
-						
 						//check topic is exist
 						if(matcherCount == 1)
 						{
@@ -177,12 +182,23 @@ public class ExtractReuters
 								topicBoolean = false;
 								break;
 							}
+							else {
+								sb.append(groupString);
+								String[] tokenizedTerms = sb.toString().replaceAll("[\\W&&[^\\s]]", "").split("\\W+");
+								for (String term : tokenizedTerms) {
+				                    if (!allTerms.contains(term)) {  //avoid duplicate entry
+				                        allTerms.add(term);
+				                    }
+				                }
+				                termsDocsArray.add(tokenizedTerms);
+							}
 							if(groupString.equals("<BODY></BODY>"))
 							{
 								topicBoolean = false;
 								break;
 							}
 						}
+						tfidf();
 						
 						for (int i = 1; i <= matcher.groupCount(); i++)
 						{
@@ -250,6 +266,31 @@ public class ExtractReuters
 		{
 			throw new RuntimeException(e);
 		}
+	}
+	public void tfidf() {
+		double tf; //term frequency
+        double idf; //inverse document frequency
+        double tfidf; //term requency inverse document frequency        
+        for (int i =0;i<termsDocsArray.size();i++) {
+        	String[] array = new String[termsDocsArray.size()];
+        	int index = 0;
+        	for (Object value : termsDocsArray) {
+        	  array[index] =  value.toString();
+        	  index++;
+        	}
+            double[] tfidfvectors = new double[allTerms.size()];
+            int count = 0;
+            for (Object terms : allTerms) {
+                tf = new TfIdf().tfCalculator(array, terms.toString());
+                idf = new TfIdf().idfCalculator(termsDocsArray, terms.toString());
+                tfidf = tf * idf;
+                System.out.print(tfidf);
+                tfidfvectors[count] = tfidf;
+                count++;
+            }
+            System.out.print("\n------------------------\n");
+            tfidfDocsVector.add(tfidfvectors);  //storing document vectors;            
+        }
 	}
 
 	public static void main(String[] args)
