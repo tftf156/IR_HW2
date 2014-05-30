@@ -22,7 +22,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
+import java.util.ArrayList;
+import java.util.TreeMap;  
 
 /**
 * Split the Reuters SGML documents into Simple Text files containing: Title, Date, Dateline, Body
@@ -32,6 +33,9 @@ public class ExtractReuters
 	private File reutersDir;
 	private File outputDir;
 	private static final String LINE_SEPARATOR = System.getProperty("line.separator");
+	//
+	private ArrayList<String> topicsArray;
+	private ArrayList<Integer> topicsNumArray;
 	int docNumber = 0;
 	int testStart = -1;
 
@@ -50,6 +54,8 @@ public class ExtractReuters
 
 	public void extract()
 	{
+		topicsArray = new ArrayList<String>();
+		topicsNumArray = new ArrayList<Integer>();
 		File [] sgmFiles = reutersDir.listFiles(new FileFilter()
 		{
 			public boolean accept(File file)
@@ -66,6 +72,11 @@ public class ExtractReuters
 				extractFile(sgmFile);
 			}
 			System.out.println("Complete!!");
+			//
+			for(String topic : topicsArray)
+			{
+				System.out.println(topic + " " + topicsNumArray.get(topicsArray.indexOf(topic)));
+			}
 		}
 		else
 		{
@@ -184,8 +195,27 @@ public class ExtractReuters
 									Integer length = split.length - 1;
 									topicString = length.toString();
 									for(int l=1;l<split.length;l++)
+									{
 										topicString = topicString + " " + split[l].split("</D>")[0];
+										//
+										String topicName = split[l].split("</D>")[0];
+										boolean isContain = false;
+										for(String topic : topicsArray)
+										{
+											if(topicName.matches(topic))
+											{
+												isContain = true;
+												topicsNumArray.set(topicsArray.indexOf(topic), topicsNumArray.get(topicsArray.indexOf(topic)) + 1);
+											}
+										}
+										if(!isContain)
+										{
+											topicsArray.add(topicName);
+											topicsNumArray.add(1);
+										}
+									}
 									outBuffer.append(topicString);
+									
 								}
 								else
 									outBuffer.append(matcher.group(i));
@@ -237,7 +267,7 @@ public class ExtractReuters
 			printUsage();
 		}
 	}
-
+	
 	private static void printUsage()
 	{
 		System.err.println("Usage: java -cp <...> org.apache.lucene.benchmark.utils.ExtractReuters <Path to Reuters SGM files> <Output Path>");
