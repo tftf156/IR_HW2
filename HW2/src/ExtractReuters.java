@@ -38,12 +38,12 @@ public class ExtractReuters
 	private File outputDir;
 	private static final String LINE_SEPARATOR = System.getProperty("line.separator");
 	//
-	ArrayList<Topics> allTopics;
+	static ArrayList<Topics> allTopics;
 	int docNumber = 0;
 	int testStart = -1;
-    private List termsDocsArray = new ArrayList();
-    private List allTerms = new ArrayList();
-    private List tfidfDocsVector = new ArrayList();
+    private static List termsDocsArray = new ArrayList();
+    private static List allTerms = new ArrayList();
+    private static List tfidfDocsVector = new ArrayList();
 
 	public ExtractReuters(File reutersDir, File outputDir)
 	{
@@ -218,14 +218,7 @@ public class ExtractReuters
 								for (int i : topicsIndex) {
 									allTopics.get(i).bodyString += bodyString;
 								}
-								/*sb.append(groupString);
-								String[] tokenizedTerms = sb.toString().replaceAll("[\\W&&[^\\s]]", "").split("\\W+");
-								for (String term : tokenizedTerms) {
-				                    if (!allTerms.contains(term)) {  //avoid duplicate entry
-				                        allTerms.add(term);
-				                    }
-				                }
-				                termsDocsArray.add(tokenizedTerms);*/
+
 							}
 						}
 						//tfidf();
@@ -336,6 +329,24 @@ public class ExtractReuters
 			outputDir.mkdirs();
 			ExtractReuters extractor = new ExtractReuters(reutersDir, outputDir);
 			extractor.extract();
+			String bodyString = ""; 
+			for (Topics topics : allTopics) {
+				bodyString = topics.bodyString;
+				String[] tokenizedTerms = bodyString.replaceAll("[\\W&&[^\\s]]", "").split("\\W+");
+				System.out.print(bodyString);
+				System.out.print("\n------------------------------\n");
+				
+				for (String term : tokenizedTerms) {
+					
+	                if (!allTerms.contains(term)) {  //avoid duplicate entry
+	                    allTerms.add(term);
+	                }
+	            }
+				
+	            termsDocsArray.add(tokenizedTerms);
+			}
+			
+
 		}
 		else
 		{
