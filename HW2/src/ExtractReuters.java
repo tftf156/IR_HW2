@@ -25,7 +25,9 @@ import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;  
+import java.util.Vector;
 
 /**
 * Split the Reuters SGML documents into Simple Text files containing: Title, Date, Dateline, Body
@@ -36,8 +38,7 @@ public class ExtractReuters
 	private File outputDir;
 	private static final String LINE_SEPARATOR = System.getProperty("line.separator");
 	//
-	private ArrayList<String> topicsArray;
-	private ArrayList<Integer> topicsNumArray;
+	ArrayList<Topics> allTopics;
 	int docNumber = 0;
 	int testStart = -1;
     private List termsDocsArray = new ArrayList();
@@ -59,8 +60,7 @@ public class ExtractReuters
 
 	public void extract()
 	{
-		topicsArray = new ArrayList<String>();
-		topicsNumArray = new ArrayList<Integer>();
+		allTopics = new ArrayList<>();
 		File [] sgmFiles = reutersDir.listFiles(new FileFilter()
 		{
 			public boolean accept(File file)
@@ -76,7 +76,28 @@ public class ExtractReuters
 				File sgmFile = sgmFiles[i];
 				extractFile(sgmFile);
 			}
-			//System.out.println("Complete!!");
+			System.out.println("Complete!!");
+			
+			try {
+				StringBuffer outBuffer = new StringBuffer(1024);
+				
+				for(Topics topics : allTopics)
+				{
+					outBuffer.append(topics.topicNumber);
+					outBuffer.append(LINE_SEPARATOR).append(LINE_SEPARATOR);
+					outBuffer.append(topics.bodyString);
+					
+					File outFile = new File(outputDir, topics.topicName + ".txt");
+					FileWriter writer = new FileWriter(outFile);
+					writer.write(outBuffer.toString());
+					writer.close();
+					outBuffer.setLength(0);
+				}
+				System.out.println("file complete");
+			} catch (Exception e) {
+				// TODO: handle exception
+			}
+			
 			//
 			//for(String topic : topicsArray)
 			//{
@@ -113,6 +134,8 @@ public class ExtractReuters
 			int count = 0;
 			String groupString;
 			String typeString = "";
+			String topicString = "";
+			ArrayList<Integer> topicsIndex = new ArrayList<>();
 			
 			while ((line = reader.readLine()) != null)
 			{
@@ -129,6 +152,7 @@ public class ExtractReuters
 					Boolean topicBoolean = true;
 					int matcherCount = 0;
 					StringBuilder sb = new StringBuilder();
+					topicsIndex.clear();
 					//Extract the relevant pieces and write to a file in the output dir
 					Matcher matcher = EXTRACTION_PATTERN.matcher(buffer);
 					while (matcher.find())
@@ -182,23 +206,29 @@ public class ExtractReuters
 								topicBoolean = false;
 								break;
 							}
-							else {
-								sb.append(groupString);
+							if(groupString.equals("<BODY></BODY>"))
+							{
+								topicBoolean = false;
+								break;
+							}
+							else if(topicBoolean){
+								String[] spliString = groupString.split("<BODY>");
+								String bodyString = spliString[1].replaceAll("  Reuter &#3;</BODY>", "");
+								bodyString = bodyString.replaceAll("  REUTER &#3;</BODY>", "");
+								for (int i : topicsIndex) {
+									allTopics.get(i).bodyString += bodyString;
+								}
+								/*sb.append(groupString);
 								String[] tokenizedTerms = sb.toString().replaceAll("[\\W&&[^\\s]]", "").split("\\W+");
 								for (String term : tokenizedTerms) {
 				                    if (!allTerms.contains(term)) {  //avoid duplicate entry
 				                        allTerms.add(term);
 				                    }
 				                }
-				                termsDocsArray.add(tokenizedTerms);
-							}
-							if(groupString.equals("<BODY></BODY>"))
-							{
-								topicBoolean = false;
-								break;
+				                termsDocsArray.add(tokenizedTerms);*/
 							}
 						}
-						tfidf();
+						//tfidf();
 						
 						for (int i = 1; i <= matcher.groupCount(); i++)
 						{
@@ -206,7 +236,7 @@ public class ExtractReuters
 							{
 								if(matcherCount == 1)
 								{
-									String topicString = matcher.group(i);
+									topicString = matcher.group(i);
 									split = topicString.split("<D>");
 									Integer length = split.length - 1;
 									topicString = length.toString();
@@ -216,18 +246,21 @@ public class ExtractReuters
 										//
 										String topicName = split[l].split("</D>")[0];
 										boolean isContain = false;
-										for(String topic : topicsArray)
+										for(Topics topic : allTopics)
 										{
-											if(topicName.matches(topic))
+											if(topicName.matches(topic.topicName))
 											{
 												isContain = true;
-												topicsNumArray.set(topicsArray.indexOf(topic), topicsNumArray.get(topicsArray.indexOf(topic)) + 1);
+												int topicIndex = allTopics.indexOf(topic);
+												topicsIndex.add(topicIndex);
+												allTopics.get(topicIndex).topicNumber +=1;
 											}
 										}
 										if(!isContain)
 										{
-											topicsArray.add(topicName);
-											topicsNumArray.add(1);
+											Topics topics = new Topics(topicName, 1);
+											allTopics.add(topics);
+											topicsIndex.add(allTopics.indexOf(topics));
 										}
 									}
 									outBuffer.append(topicString);
@@ -242,9 +275,8 @@ public class ExtractReuters
 					}
 					if(matcherCount < 4) topicBoolean = false;
 					
-					if(topicBoolean)
+					/*if(topicBoolean)
 					{
-						if(docNumber == 16) System.out.println(matcherCount);
 						String out = outBuffer.toString();
 						for (int i = 0; i < META_CHARS_SERIALIZATIONS.length; i++)
 						{
@@ -255,9 +287,11 @@ public class ExtractReuters
 						FileWriter writer = new FileWriter(outFile);
 						writer.write(out);
 						writer.close();
-					}
+						count++;
+					}*/
 					outBuffer.setLength(0);
 					buffer.setLength(0);
+					//if(count == 2)break;
 				}
 			}
 			reader.close();
